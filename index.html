@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Portfolio Rebalancing Calculator</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 40px; background-color: #f4f7f6; }
+        table { border-collapse: collapse; width: 100%; margin-top: 20px; background: white; }
+        th, td { border: 1px solid #ddd; padding: 12px; text-align: left; }
+        th { background-color: #0076a3; color: white; }
+        .input-section { margin-bottom: 20px; background: #eef2f5; padding: 15px; border-radius: 5px; }
+        button { background-color: #28a745; color: white; padding: 10px 15px; border: none; cursor: pointer; font-size: 16px; font-weight: bold; }
+        button:hover { background-color: #218838; }
+        button:disabled { background-color: #cccccc; cursor: not-allowed; }
+        input[type="number"] { width: 80px; padding: 6px; border: 1px solid #ccc; border-radius: 4px; }
+        .readonly-field { font-weight: bold; color: #333; }
+        .error-message { color: #dc3545; font-weight: bold; margin-top: 10px; display: none; }
+        .summary-section { margin-top: 15px; font-size: 14px; color: #555; }
+    </style>
+</head>
+<body>
+
+    <h2>Technical Assessment - Portfolio Rebalancing (With Validations)</h2>
+    
+    <div class="input-section">
+        <label for="totalAsset"><strong>Total Asset Value ($):</strong> </label>
+        <!-- Added min="0" to restrict negative numbers natively -->
+        <input type="number" id="totalAsset" value="100000" min="0" data-testid="total-asset-input">
+        <button id="calculateBtn" data-testid="calculate-button">Calculate Rebalancing</button>
+        
+        <!-- Validation Error Messages -->
+        <div id="validationError" class="error-message" data-testid="validation-error"></div>
+        
+        <!-- Live Totals Tracker for easier debugging -->
+        <div class="summary-section">
+            Current Target Total: <span id="targetTotalSum" data-testid="sum-target">100</span>% | 
+            Current Allocation Total: <span id="currentTotalSum" data-testid="sum-current">100</span>%
+        </div>
+    </div>
+
+    <table>
+        <thead>
+            <tr>
+                <th>Security</th>
+                <th>Target %</th>
+                <th>Current %</th>
+                <th>Variance %</th>
+                <th>Unit Price ($)</th>
+                <th>Output (Shares to Buy/Sell)</th>
+            </tr>
+        </thead>
+        <tbody id="portfolioTable">
+            <tr data-testid="row-IBM">
+                <td><strong>IBM</strong></td>
+                <td><input type="number" class="target-pct" value="20" min="0" data-testid="input-target-IBM"></td>
+                <td><input type="number" class="current-pct" value="10" min="0" data-testid="input-current-IBM"></td>
+                <td class="readonly-field" data-testid="variance-IBM">-10</td>
+                <td><input type="number" class="unit-price" value="150" min="0" data-testid="input-price-IBM"></td>
+                <td class="readonly-field" data-testid="output-IBM">-</td>
+            </tr>
+            <tr data-testid="row-MSFT">
+                <td><strong>MSFT</strong></td>
+                <td><input type="number" class="target-pct" value="20" min="0" data-testid="input-target-MSFT"></td>
+                <td><input type="number" class="current-pct" value="20" min="0" data-testid="input-current-MSFT"></td>
+                <td class="readonly-field" data-testid="variance-MSFT">0</td>
+                <td><input type="number" class="unit-price" value="90" min="0" data-testid="input-price-MSFT"></td>
+                <td class="readonly-field" data-testid="output-MSFT">-</td>
+            </tr>
+            <tr data-testid="row-ORCL">
+                <td><strong>ORCL</strong></td>
+                <td><input type="number" class="target-pct" value="20" min="0" data-testid="input-target-ORCL"></td>
+                <td><input type="number" class="current-pct" value="30" min="0" data-testid="input-current-ORCL"></td>
+                <td class="readonly-field" data-testid="variance-ORCL">10</td>
+                <td><input type="number" class="unit-price" value="220" min="0" data-testid="input-price-ORCL"></td>
+                <td class="readonly-field" data-testid="output-ORCL">-</td>
+            </tr>
+            <tr data-testid="row-AAPL">
+                <td><strong>AAPL</strong></td>
+                <td><input type="number" class="target-pct" value="20" min="0" data-testid="input-target-AAPL"></td>
+                <td><input type="number" class="current-pct" value="20" min="0" data-testid="input-current-AAPL"></td>
+                <td class="readonly-field" data-testid="variance-AAPL">0</td>
+                <td><input type="number" class="unit-price" value="450" min="0" data-testid="input-price-AAPL"></td>
+                <td class="readonly-field" data-testid="output-AAPL">-</td>
+            </tr>
+            <tr data-testid="row-HD">
+                <td><strong>HD</strong></td>
+                <td><input type="number" class="target-pct" value="20" min="0" data-testid="input-target-HD"></td>
+                <td><input type="number" class="current-pct" value="20" min="0" data-testid="input-current-HD"></td>
+                <td class="readonly-field" data-testid="variance-HD">0</td>
+                <td><input type="number" class="unit-price" value="70" min="0" data-testid="input-price-HD"></td>
+                <td class="readonly-field" data-testid="output-HD">-</td>
+            </tr>
+        </tbody>
+    </table>
+
+    <script>
+        const calculateBtn = document.getElementById('calculateBtn');
+        const rows = document.querySelectorAll('#portfolioTable tr');
+        const errorDiv = document.getElementById('validationError');
+        const targetTotalSpan = document.getElementById('targetTotalSum');
+        const currentTotalSpan = document.getElementById('currentTotalSum');
+
+        function validateAndFillData() {
+            let totalTargetPct = 0;
+            let totalCurrentPct = 0;
+            let hasNegativeValues = false;
+
+            // Check Total Asset value first
+            const totalAsset = parseFloat(document.getElementById('totalAsset').value);
+            if (totalAsset < 0) {
+                hasNegativeValues = true;
+            }
+
+            rows.forEach(row => {
+                const targetPct = parseFloat(row.querySelector('.target-pct').value) || 0;
+                const currentPct = parseFloat(row.querySelector('.current-pct').value) || 0;
+                const unitPrice = parseFloat(row.querySelector('.unit-price').value) || 0;
+                const varianceField = row.querySelector('.readonly-field[data-testid^="variance-"]');
+                
+                totalTargetPct += targetPct;
+                totalCurrentPct += currentPct;
+
+                if (targetPct < 0 || currentPct < 0 || unitPrice < 0) {
+                    hasNegativeValues = true;
+                }
+
+                // Live variance calculation
+                varianceField.innerText = (currentPct - targetPct).toFixed(0);
+            });
+
+            // Update live summary numbers
+            targetTotalSpan.innerText = totalTargetPct;
+            currentTotalSpan.innerText = totalCurrentPct;
+
+            // Check if constraints are met
+            let errorMessages = [];
+            
+            // Business rule: No negative values allowed 🚀
+            if (hasNegativeValues) {
+                errorMessages.push("Negative values are not allowed in any field");
+            }
+            if (totalTargetPct !== 100) {
+                errorMessages.push(`Total Target % must equal exactly 100% (currently: ${totalTargetPct}%)`);
+            }
+            if (totalCurrentPct !== 100) {
+                errorMessages.push(`Total Current % must equal exactly 100% (currently: ${totalCurrentPct}%)`);
+            }
+
+            // UI Handling for validation state
+            if (errorMessages.length > 0) {
+                errorDiv.innerText = errorMessages.join(' | ');
+                errorDiv.style.display = 'block';
+                calculateBtn.disabled = true;
+                return false;
+            } else {
+                errorDiv.style.display = 'none';
+                errorDiv.innerText = '';
+                calculateBtn.disabled = false;
+                return true;
+            }
+        }
+
+        // Event listener for real-time validation typing
+        document.body.addEventListener('input', validateAndFillData);
+
+        // Core calculation triggered on button click
+        calculateBtn.addEventListener('click', () => {
+            if (!validateAndFillData()) return;
+
+            const totalAsset = parseFloat(document.getElementById('totalAsset').value) || 0;
+            
+            rows.forEach(row => {
+                const targetPct = parseFloat(row.querySelector('.target-pct').value) || 0;
+                const currentPct = parseFloat(row.querySelector('.current-pct').value) || 0;
+                const unitPrice = parseFloat(row.querySelector('.unit-price').value) || 1;
+                const outputField = row.querySelector('.readonly-field[data-testid^="output-"]');
+
+                const targetValue = totalAsset * (targetPct / 100);
+                const currentValue = totalAsset * (currentPct / 100);
+                const amountToAdjust = targetValue - currentValue; 
+                
+                const shares = amountToAdjust / unitPrice;
+                outputField.innerText = shares === 0 ? "0" : shares.toFixed(2);
+            });
+        });
+
+        // Initial validation trigger on load
+        validateAndFillData();
+    </script>
+</body>
+</html>
