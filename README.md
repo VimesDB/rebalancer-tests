@@ -1,6 +1,6 @@
 # Portfolio Rebalancing Calculator - Test Suite
 
-This repository contains a Playwright + TypeScript automation suite for a small portfolio rebalancing calculator. The project focuses on verifying business rules, validation flows, and core recalculation behavior against the app served locally via `http-server`.
+This repository contains a Playwright + TypeScript automation suite for a small portfolio rebalancing calculator. The project focuses on verifying business rules, validation flows and core recalculation behavior against the app served locally via `http-server`.
 
 ---
 
