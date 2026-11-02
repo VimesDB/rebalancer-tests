@@ -1,7 +1,7 @@
 import { test, expect } from "@playwright/test";
 import { RebalancePage } from "./pages/RebalancePage";
 
-test.describe("Portfolio Rebalancing Calculator - Functional Happy Path", () => {
+test.describe("Portfolio Rebalancing Calculator - Functional Tests", () => {
   let rebalancePage: RebalancePage;
 
   test.beforeEach(async ({ page }) => {
@@ -9,7 +9,7 @@ test.describe("Portfolio Rebalancing Calculator - Functional Happy Path", () => 
     await rebalancePage.navigate();
   });
 
-  test("should correctly calculate rebalancing for default values", async () => {
+  test("should calculate the default rebalancing result correctly", async () => {
     await rebalancePage.clickCalculate();
 
     await expect(rebalancePage.getOutputLocator("IBM")).toHaveText("66.67");
@@ -19,7 +19,7 @@ test.describe("Portfolio Rebalancing Calculator - Functional Happy Path", () => 
     await expect(rebalancePage.getOutputLocator("HD")).toHaveText("0");
   });
 
-  test("should dynamically calculate variance and update output shares when inputs change", async () => {   
+  test("should update variance and output when values change", async () => {
     await rebalancePage.fillTotalAsset("200000");
     await rebalancePage.clickCalculate();
 
