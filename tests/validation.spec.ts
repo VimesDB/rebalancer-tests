@@ -26,6 +26,12 @@ test.describe("Portfolio Rebalancing Calculator - Data Validation Tests", () => 
     await expectCalculateButtonState("enabled");
   };
 
+  const targetPercentageError = (current: number) =>
+    `Total Target % must equal exactly 100% (currently: ${current}%)`;
+
+  const currentPercentageError = (current: number) =>
+    `Total Current % must equal exactly 100% (currently: ${current}%)`;
+
   test.beforeEach(async ({ page }) => {
     rebalancePage = new RebalancePage(page);
     await rebalancePage.navigate();
@@ -36,9 +42,7 @@ test.describe("Portfolio Rebalancing Calculator - Data Validation Tests", () => 
 
     await rebalancePage.fillTargetPercentage("IBM", "21");
 
-    await expectValidationErrorAndButtonDisabled(
-      "Total Target % must equal exactly 100% (currently: 101%)",
-    );
+    await expectValidationErrorAndButtonDisabled(targetPercentageError(101));
   });
 
   test("should block calculation when total current percentage is not 100%", async () => {
@@ -46,9 +50,7 @@ test.describe("Portfolio Rebalancing Calculator - Data Validation Tests", () => 
 
     await rebalancePage.fillCurrentPercentage("IBM", "9.9");
 
-    await expectValidationErrorAndButtonDisabled(
-      "Total Current % must equal exactly 100% (currently: 99.9%)",
-    );
+    await expectValidationErrorAndButtonDisabled(currentPercentageError(99.9));
   });
 
   test("should guarantee that Variance and Output cells are strictly read-only", async ({
@@ -113,7 +115,9 @@ test.describe("Portfolio Rebalancing Calculator - Data Validation Tests", () => 
       await rebalancePage.navigate();
       await testCase.action();
 
-      await expectValidationErrorAndButtonDisabled("Negative values are not allowed in any field");
+      await expectValidationErrorAndButtonDisabled(
+        "Negative values are not allowed in any field",
+      );
 
       if (testCase.extraError) {
         await expectValidationErrorAndButtonDisabled(testCase.extraError);
@@ -148,6 +152,9 @@ test.describe("Portfolio Rebalancing Calculator - Data Validation Tests", () => 
 
     await expect(rebalancePage.getOutputLocator("IBM")).toHaveText("3.33");
     await expect(rebalancePage.getOutputLocator("MSFT")).toHaveText("-5.56");
+    await expect(rebalancePage.getOutputLocator("ORCL")).toHaveText("-45.45");
+    await expect(rebalancePage.getOutputLocator("AAPL")).toHaveText("11.11");
+    await expect(rebalancePage.getOutputLocator("HD")).toHaveText("71.43");
   });
 
   test("should show combined validation errors when multiple invalid states exist at once", async () => {
@@ -207,21 +214,30 @@ test.describe("Portfolio Rebalancing Calculator - Data Validation Tests", () => 
     await rebalancePage.fillCurrentPercentage("HD", "25");
 
     await expectNoValidationError();
+
+    await rebalancePage.clickCalculate();
+
+    await expect(rebalancePage.getOutputLocator("IBM")).toHaveText("0");
+    await expect(rebalancePage.getOutputLocator("MSFT")).toHaveText("0");
+    await expect(rebalancePage.getOutputLocator("ORCL")).toHaveText("0");
+    await expect(rebalancePage.getOutputLocator("AAPL")).toHaveText("0");
+    await expect(rebalancePage.getOutputLocator("HD")).toHaveText("0");
   });
 
   test("should re-enable calculation after invalid values are corrected step by step", async () => {
     await rebalancePage.fillTargetPercentage("IBM", "20.01");
-    await expectValidationErrorAndButtonDisabled(
-      "Total Target % must equal exactly 100% (currently: 100.01%)",
-    );
+    await expectValidationErrorAndButtonDisabled(targetPercentageError(100.01));
 
     await rebalancePage.fillTargetPercentage("IBM", "20");
     await rebalancePage.fillCurrentPercentage("MSFT", "5");
-    await expectValidationErrorAndButtonDisabled(
-      "Total Current % must equal exactly 100% (currently: 85%)",
-    );
+    await expectValidationErrorAndButtonDisabled(currentPercentageError(85));
 
     await rebalancePage.fillCurrentPercentage("MSFT", "20");
     await expectNoValidationError();
+
+    await rebalancePage.clickCalculate();
+
+    await expect(rebalancePage.getOutputLocator("IBM")).toHaveText("66.67");
+    await expect(rebalancePage.getOutputLocator("ORCL")).toHaveText("-45.45");
   });
 });
